@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 
 """
 TODO:
-find_uncommitted_changes() needs more understanding
+Enchance is_branch_merged to handle various scenarios: from feat to dev, from dev to main, from feat to main(hostfix)
 """
 
 global_config = configparser.ConfigParser()
@@ -43,9 +43,9 @@ def delete_branch(branch_name):
     # response.raise_for_status()
     print(f"Deleted branch: {branch_name}")
 
-def is_branch_merged(branch_name, base_branch='main'):
+def is_branch_merged(branch_name, base_branch):
     # URL to list pull requests for the repository
-    url = f"{global_config['github']['GITHUB_API_URL']}/repos/{global_config['github']['ORG']}/{global_config['github']['REPO_NAME']}/pulls?state=closed&base={global_config['cleanup']['DEV_BRANCH']}&head={global_config['github']['USERNAME']}:{branch_name}"
+    url = f"{global_config['github']['GITHUB_API_URL']}/repos/{global_config['github']['ORG']}/{global_config['github']['REPO_NAME']}/pulls?state=closed&base={base_branch}&head={global_config['github']['ORG']}:{branch_name}"
 
     response = requests.get(url, headers=get_headers())
 
@@ -92,7 +92,7 @@ def list_merged_branches():
     print("Merged branches:")
     for branch in branches:
         branch_name = branch['name']
-        if is_branch_merged(branch_name):
+        if is_branch_merged(branch_name, global_config['cleanup']['DEV_BRANCH']):
             print(f"- {branch_name}")
 
 def cleanup_branches():
@@ -103,7 +103,7 @@ def cleanup_branches():
             print(f"Skipping protected branch: {branch_name}")
             continue
         
-        if is_branch_inactive(branch_name, int(global_config["cleanup"]["INACTIVE_DAYS_THRESHOLD"])) and is_branch_merged(branch_name):
+        if is_branch_inactive(branch_name, int(global_config["cleanup"]["INACTIVE_DAYS_THRESHOLD"])) and is_branch_merged(branch_name, global_config['cleanup']['DEV_BRANCH']):
             delete_branch(branch_name)
         elif branch_matches_pattern(branch_name, global_config["cleanup"]["FEAT_BRANCH_PATTERN"]):
             delete_branch(branch_name)
