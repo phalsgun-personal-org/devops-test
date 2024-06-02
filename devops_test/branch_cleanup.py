@@ -3,6 +3,14 @@ import configparser
 from datetime import datetime, timedelta
 
 
+"""
+TODO:
+Delete inactive branches with unmerged changes?
+PROTECTED_BRANCHES iwth regexp for sake of matching any future dev branches
+is_branch_merged() wrong condition
+find_uncommitted_changes() needs more understanding
+"""
+
 global_config = configparser.ConfigParser()
 global_config.read('Global.config')
 
@@ -13,26 +21,8 @@ def get_headers():
         "Accept": "application/vnd.github.v3+json"
     }
 
-
 def get_branches():
     url = f"{global_config['github']['GITHUB_API_URL']}/repos/{global_config['github']['ORG']}/{global_config['github']['REPO_NAME']}/branches"
-
-    # # Check if the request was successful
-    # if response.status_code == 200:
-    #     try:
-    #         branches = response.json()
-    #         # Ensure the response is a list
-    #         if isinstance(branches, list):
-    #             branch_names = [branch["name"] for branch in branches]
-    #             print("\n".join(branch_names))
-    #         else:
-    #             print("Unexpected JSON format:", branches)
-    #     except ValueError as e:
-    #         print("Error parsing JSON response:", e)
-    # else:
-    #     print(f"Failed to retrieve branches. HTTP Status Code: {response.status_code}")
-    #     print("Response Content:", response.json())
-
     response = requests.get(url, headers=get_headers())
     response.raise_for_status()
     return response.json()
@@ -51,8 +41,9 @@ def get_commit_info(commit_sha):
 
 def delete_branch(branch_name):
     url = f"{global_config['github']['GITHUB_API_URL']}/repos/{global_config['github']['ORG']}/{global_config['github']['REPO_NAME']}/git/refs/heads/{branch_name}"
-    response = requests.delete(url, headers=get_headers())
-    response.raise_for_status()
+    # REVIEW MOCK
+    # response = requests.delete(url, headers=get_headers())
+    # response.raise_for_status()
     print(f"Deleted branch: {branch_name}")
 
 def is_branch_merged(branch_name):
@@ -60,7 +51,7 @@ def is_branch_merged(branch_name):
     response = requests.get(url, headers=get_headers())
     response.raise_for_status()
     compare_info = response.json()
-    return compare_info["status"] == "behind"  # means the branch is fully merged into the default branch
+    return compare_info["status"] == "behind"  # this condition does not mean actually branch is merged
 
 def is_branch_inactive(branch_name, threshold_days):
     branch_info = get_branch_info(branch_name)
@@ -68,7 +59,9 @@ def is_branch_inactive(branch_name, threshold_days):
     commit_info = get_commit_info(commit_sha)
     commit_date = commit_info["commit"]["committer"]["date"]
     commit_datetime = datetime.strptime(commit_date, "%Y-%m-%dT%H:%M:%SZ")
-    return (datetime.utcnow() - commit_datetime).days > threshold_days
+    # return (datetime.utcnow() - commit_datetime).days > threshold_days
+    # REVIEW MOCK
+    return True
 
 def branch_matches_pattern(branch_name, pattern):
     return pattern in branch_name
