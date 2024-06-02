@@ -5,8 +5,6 @@ from datetime import datetime, timedelta
 
 """
 TODO:
-PROTECTED_BRANCHES with regexp for sake of matching any future dev branches
-is_branch_merged() wrong condition
 find_uncommitted_changes() needs more understanding
 """
 
@@ -97,21 +95,6 @@ def list_merged_branches():
         if is_branch_merged(branch_name):
             print(f"- {branch_name}")
 
-def find_uncommitted_changes(branch_name):
-    url = f"{global_config['github']['GITHUB_API_URL']}/repos/{global_config['github']['ORG']}/{global_config['github']['REPO_NAME']}/branches/{branch_name}"
-    response = requests.get(url, headers=get_headers())
-    response.raise_for_status()
-    branch_info = response.json()
-    return branch_info['commit']['commit']['tree']['sha'] != branch_info['commit']['sha']
-
-def list_uncommitted_changes():
-    branches = get_branches()
-    print("Branches with uncommitted changes:")
-    for branch in branches:
-        branch_name = branch['name']
-        if find_uncommitted_changes(branch_name):
-            print(f"- {branch_name}")
-
 def cleanup_branches():
     branches = get_branches()
     for branch in branches:
@@ -129,7 +112,6 @@ def main():
     list_all_branches()
     list_inactive_branches(int(global_config["cleanup"]["INACTIVE_DAYS_THRESHOLD"]))
     list_merged_branches()
-    list_uncommitted_changes()
     cleanup_branches()
 
 if __name__ == "__main__":
