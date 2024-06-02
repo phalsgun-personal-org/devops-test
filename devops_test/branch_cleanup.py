@@ -5,8 +5,7 @@ from datetime import datetime, timedelta
 
 """
 TODO:
-Delete inactive branches with unmerged changes?
-PROTECTED_BRANCHES iwth regexp for sake of matching any future dev branches
+PROTECTED_BRANCHES with regexp for sake of matching any future dev branches
 is_branch_merged() wrong condition
 find_uncommitted_changes() needs more understanding
 """
@@ -46,12 +45,22 @@ def delete_branch(branch_name):
     # response.raise_for_status()
     print(f"Deleted branch: {branch_name}")
 
-def is_branch_merged(branch_name):
-    url = f"{global_config['github']['GITHUB_API_URL']}/repos/{global_config['github']['ORG']}/{global_config['github']['REPO_NAME']}/compare/{global_config['cleanup']['DEFAULT_BRANCH']}...{branch_name}"
+def is_branch_merged(branch_name, base_branch='main'):
+    # URL to list pull requests for the repository
+    url = f"{global_config['github']['GITHUB_API_URL']}/repos/{global_config['github']['ORG']}/{global_config['github']['REPO_NAME']}/pulls?state=closed&base={global_config['cleanup']['DEV_BRANCH']}&head={global_config['github']['USERNAME']}:{branch_name}"
+
     response = requests.get(url, headers=get_headers())
-    response.raise_for_status()
-    compare_info = response.json()
-    return compare_info["status"] == "behind"  # this condition does not mean actually branch is merged
+
+    if response.status_code == 200:
+        pull_requests = response.json()
+        # Check if there is any merged pull request
+        for pr in pull_requests:
+            if pr['merged_at'] is not None:
+                return True
+        return False
+    else:
+        print(f"Error: {response.status_code}, {response.json().get('message')}")
+        return False
 
 def is_branch_inactive(branch_name, threshold_days):
     branch_info = get_branch_info(branch_name)
@@ -111,9 +120,7 @@ def cleanup_branches():
             print(f"Skipping protected branch: {branch_name}")
             continue
         
-        if is_branch_merged(branch_name):
-            delete_branch(branch_name)
-        elif is_branch_inactive(branch_name, int(global_config["cleanup"]["INACTIVE_DAYS_THRESHOLD"])):
+        if is_branch_inactive(branch_name, int(global_config["cleanup"]["INACTIVE_DAYS_THRESHOLD"])) and is_branch_merged(branch_name):
             delete_branch(branch_name)
         elif branch_matches_pattern(branch_name, global_config["cleanup"]["FEAT_BRANCH_PATTERN"]):
             delete_branch(branch_name)
